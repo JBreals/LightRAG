@@ -79,7 +79,18 @@ export const supportedFileTypes = {
   'application/pdf': ['.pdf'],
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
   'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
+  // Legacy Office formats (requires RAGANYTHING engine)
+  'application/msword': ['.doc'],
+  'application/vnd.ms-powerpoint': ['.ppt'],
+  'application/vnd.ms-excel': ['.xls'],
+  // Image files (requires RAGANYTHING engine for multimodal processing)
+  'image/png': ['.png'],
+  'image/jpeg': ['.jpg', '.jpeg'],
+  'image/gif': ['.gif'],
+  'image/webp': ['.webp'],
+  'image/bmp': ['.bmp'],
+  'image/tiff': ['.tiff', '.tif']
 }
 
 export const SiteInfo = {

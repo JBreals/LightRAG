@@ -28,7 +28,7 @@ dependencies = [
     "json_repair",
     "nano-vectordb",
     "networkx",
-    "numpy>=1.24.0,<2.0.0",
+    "numpy>=1.24.0",
     "pandas>=2.0.0,<2.4.0",
     "pipmaster",
     "pydantic",
@@ -56,7 +56,7 @@ api = [
     "json_repair",
     "nano-vectordb",
     "networkx",
-    "numpy>=1.24.0,<2.0.0",
+    "numpy>=1.24.0",
     "openai>=2.0.0,<3.0.0",
     "pandas>=2.0.0,<2.4.0",
     "pipmaster",
@@ -98,6 +98,14 @@ docling = [
     # On macOS, pytorch and frameworks use Objective-C are not fork-safe,
     # and not compatible to gunicorn multi-worker mode
     "docling>=2.0.0,<3.0.0; sys_platform != 'darwin'",
+]
+
+# Multimodal RAG processing with RAG-Anything (optional)
+# Enables image, table, and equation processing in documents
+# Note: Requires numpy>=2.1.0 which overrides the base numpy constraint
+multimodal = [
+    "raganything>=1.0.0",
+    "numpy>=2.1.0",  # Required by raganything's mineru dependency
 ]
 
 # Offline deployment dependencies (layered design for flexibility)

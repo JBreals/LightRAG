@@ -99,7 +99,7 @@
         "error": "Деякі файли не вдалося завантажити"
       },
       "generalError": "Завантаження не вдалося\n{{error}}",
-      "fileTypes": "Підтримувані типи: TXT, MD, DOCX, PDF, PPTX, XLSX, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
+      "fileTypes": "Підтримувані типи: TXT, MD, DOCX, PDF, PPTX, XLSX, DOC, PPT, XLS, PNG, JPG, JPEG, GIF, WEBP, BMP, TIFF, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
       "fileUploader": {
         "singleFileLimit": "Не можна завантажити більше 1 файлу одночасно",
         "maxFilesLimit": "Не можна завантажити більше {{count}} файлів",
@@ -120,6 +120,8 @@
       "refreshTooltip": "Скинути список документів",
       "pipelineStatusButton": "Пайплайн",
       "pipelineStatusTooltip": "Переглянути статус пайплайну обробки документів",
+      "vlmPromptButton": "VLM-промпт",
+      "vlmPromptTooltip": "Налаштування промптів моделі комп'ютерного зору для опису зображень",
       "uploadedTitle": "Завантажені документи",
       "uploadedDescription": "Список завантажених документів та їх статусів.",
       "emptyTitle": "Немає документів",
@@ -177,6 +179,39 @@
       "cancelNotBusy": "Пайплайн не працює, немає потреби скасовувати",
       "errors": {
         "fetchFailed": "Не вдалося отримати статус пайплайну\n{{error}}"
+      }
+    },
+    "documentContent": {
+      "title": "Вміст документа",
+      "description": "Переглянути повний вміст документа",
+      "clickToView": "Натисніть для перегляду повного вмісту",
+      "contentLength": "Довжина вмісту: {{length}} символів",
+      "copy": "Копіювати",
+      "copied": "Скопійовано!",
+      "copySuccess": "Вміст скопійовано до буфера обміну",
+      "copyFailed": "Не вдалося скопіювати вміст",
+      "emptyContent": "(Немає вмісту)",
+      "errors": {
+        "fetchFailed": "Не вдалося отримати вміст документа\n{{error}}"
+      }
+    },
+    "vlmPrompt": {
+      "title": "Налаштування VLM-промптів",
+      "description": "Налаштування промптів для моделі комп'ютерного зору, що використовується при обробці мультимодальних документів",
+      "language": "Мова",
+      "systemPromptLabel": "Системний промпт",
+      "systemPromptPlaceholder": "Введіть системний промпт для аналізу зображень...",
+      "systemPromptHelp": "Інструкції для Vision LLM щодо аналізу зображень. Залиште порожнім для використання значень за замовчуванням.",
+      "userPromptLabel": "Користувацький промпт",
+      "userPromptPlaceholder": "Введіть користувацький промпт для аналізу зображень...",
+      "userPromptHelp": "Фактичний промпт, що надсилається з кожним зображенням. Залиште порожнім для використання значень за замовчуванням.",
+      "resetToDefaults": "Скинути за замовчуванням",
+      "saveSuccess": "VLM-промпти успішно збережено",
+      "resetSuccess": "VLM-промпти скинуто за замовчуванням",
+      "errors": {
+        "fetchFailed": "Помилка отримання VLM-промптів\n{{error}}",
+        "saveFailed": "Помилка збереження VLM-промптів\n{{error}}",
+        "resetFailed": "Помилка скидання VLM-промптів\n{{error}}"
       }
     }
   },

@@ -20,6 +20,7 @@ from fastapi import (
     HTTPException,
     UploadFile,
 )
+from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field, field_validator
 
 from lightrag import LightRAG
@@ -31,6 +32,19 @@ from lightrag.utils import (
 )
 from lightrag.api.utils_api import get_combined_auth_dependency
 from ..config import global_args
+from ..raganything_utils import (
+    _is_raganything_available,
+    get_supported_multimodal_extensions,
+    is_image_file,
+    create_vision_model_func,
+    extract_content_with_raganything,
+    _get_vision_system_prompt,
+    _get_vision_prompt,
+)
+from lightrag.kg.json_block_mapping_impl import JsonBlockMappingStorage
+
+# Global block mapping storage instance (initialized per workspace)
+_block_mapping_storages: dict[str, JsonBlockMappingStorage] = {}
 
 
 @lru_cache(maxsize=1)
@@ -468,6 +482,64 @@ class DocStatusResponse(BaseModel):
         }
 
 
+class DocContentResponse(BaseModel):
+    """Response model for document full content
+
+    Attributes:
+        id: Document identifier
+        content: Full document content text
+        file_path: Original file path of the document
+    """
+
+    id: str = Field(description="Document identifier")
+    content: str = Field(description="Full document content text")
+    file_path: str = Field(description="Original file path of the document")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": "doc-abc123def456",
+                "content": "Full document text content here...",
+                "file_path": "documents/research_paper.pdf",
+            }
+        }
+
+
+class VLMPromptsResponse(BaseModel):
+    """Response model for VLM prompts
+
+    Attributes:
+        system_prompt: System prompt for Vision LLM
+        user_prompt: User prompt for Vision LLM
+        language: Current summary language setting
+    """
+
+    system_prompt: str = Field(description="System prompt for Vision LLM")
+    user_prompt: str = Field(description="User prompt for Vision LLM")
+    language: str = Field(description="Current summary language setting")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "system_prompt": "You are a document analysis expert...",
+                "user_prompt": "Analyze and describe this image...",
+                "language": "English",
+            }
+        }
+
+
+class VLMPromptsUpdateRequest(BaseModel):
+    """Request model for updating VLM prompts
+
+    Attributes:
+        system_prompt: Custom system prompt (empty string to use default)
+        user_prompt: Custom user prompt (empty string to use default)
+    """
+
+    system_prompt: str = Field(default="", description="Custom system prompt for Vision LLM")
+    user_prompt: str = Field(default="", description="Custom user prompt for Vision LLM")
+
+
 class DocsStatusesResponse(BaseModel):
     """Response model for document statuses
 
@@ -804,6 +876,19 @@ class DocumentManager:
             ".css",  # Cascading Style Sheets
             ".scss",  # Sassy CSS
             ".less",  # LESS CSS
+            # Image files (requires RAGANYTHING engine)
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".webp",
+            ".bmp",
+            ".tiff",
+            ".tif",
+            # Legacy Office formats
+            ".doc",
+            ".ppt",
+            ".xls",
         ),
     ):
         # Store the base input directory and workspace
@@ -943,6 +1028,149 @@ def _convert_with_docling(file_path: Path) -> str:
     converter = DocumentConverter()
     result = converter.convert(file_path)
     return result.document.export_to_markdown()
+
+
+async def _convert_with_docling_vlm(
+    file_path: Path,
+    vision_model: str,
+    api_key: str = None,
+    api_base: str = None,
+    images_scale: float = 2.0,
+    language: str = "English",
+) -> str:
+    """Convert document using docling with VLM image processing.
+
+    Extracts figures/images from documents and processes them with a vision
+    language model to generate descriptions that are included in the output.
+
+    Args:
+        file_path: Path to the document file
+        vision_model: Vision model name (e.g., 'gpt-4o')
+        api_key: API key for the vision model
+        api_base: API base URL (optional, for custom endpoints)
+        images_scale: Scale factor for extracted images (default: 2.0)
+        language: Language for image descriptions (default: English)
+
+    Returns:
+        str: Extracted markdown content with image descriptions
+    """
+    from docling.document_converter import DocumentConverter, PdfFormatOption  # type: ignore
+    from docling.datamodel.pipeline_options import PdfPipelineOptions  # type: ignore
+    from docling.datamodel.base_models import InputFormat  # type: ignore
+    from docling_core.types.doc import PictureItem  # type: ignore
+    from lightrag.api.raganything_utils import (
+        create_vision_model_func,
+        _get_docling_vision_system_prompt,
+        _get_docling_vision_prompt,
+        encode_image_to_base64,
+    )
+    import io
+    import base64
+    import time
+
+    logger.info(f"[Docling+VLM] Starting conversion for {file_path.name}...")
+    start_time = time.time()
+
+    # Configure pipeline options to generate picture images
+    pipeline_options = PdfPipelineOptions()
+    pipeline_options.generate_picture_images = True
+    pipeline_options.images_scale = images_scale
+
+    # Create converter with PDF options
+    converter = DocumentConverter(
+        format_options={
+            InputFormat.PDF: PdfFormatOption(pipeline_options=pipeline_options)
+        }
+    )
+
+    # Convert document (synchronous operation, run in thread)
+    result = await asyncio.to_thread(converter.convert, file_path)
+    document = result.document
+
+    parse_time = time.time() - start_time
+    logger.info(f"[Docling+VLM] Document parsed in {parse_time:.1f}s")
+
+    # Create vision model function
+    vision_func = create_vision_model_func(
+        model=vision_model,
+        api_key=api_key,
+        api_base=api_base,
+    )
+
+    # Get prompts for the specified language
+    system_prompt = _get_docling_vision_system_prompt(language)
+    user_prompt = _get_docling_vision_prompt(language)
+
+    # Collect picture items and process with VLM
+    picture_descriptions = {}
+    picture_count = 0
+    total_pictures = 0
+
+    # Count total pictures first
+    for element, _level in document.iterate_items():
+        if isinstance(element, PictureItem):
+            total_pictures += 1
+
+    if total_pictures > 0:
+        logger.info(f"[Docling+VLM] Found {total_pictures} pictures to process")
+
+    # Process each picture with VLM
+    for element, _level in document.iterate_items():
+        if isinstance(element, PictureItem):
+            picture_count += 1
+            try:
+                # Get image from PictureItem
+                pil_image = element.get_image(document)
+                if pil_image is not None:
+                    # Convert PIL image to base64
+                    img_buffer = io.BytesIO()
+                    pil_image.save(img_buffer, format="PNG")
+                    img_buffer.seek(0)
+                    img_b64 = base64.b64encode(img_buffer.read()).decode("utf-8")
+
+                    logger.info(
+                        f"[Docling+VLM] Processing picture {picture_count}/{total_pictures}..."
+                    )
+                    img_start = time.time()
+
+                    # Call vision model
+                    description = await vision_func(
+                        user_prompt,
+                        img_b64,
+                        system_prompt=system_prompt,
+                    )
+
+                    img_elapsed = time.time() - img_start
+                    logger.info(
+                        f"[Docling+VLM] Picture {picture_count} processed in {img_elapsed:.1f}s"
+                    )
+
+                    # Store description keyed by element reference
+                    picture_descriptions[id(element)] = description
+            except Exception as e:
+                logger.warning(
+                    f"[Docling+VLM] Failed to process picture {picture_count}: {e}"
+                )
+
+    # Export to markdown
+    markdown_content = document.export_to_markdown()
+
+    # If we have picture descriptions, append them to relevant sections
+    if picture_descriptions:
+        # Build a section with all figure descriptions
+        figure_section = "\n\n## Figure Descriptions\n\n"
+        for idx, (elem_id, desc) in enumerate(picture_descriptions.items(), 1):
+            figure_section += f"### Figure {idx}\n\n{desc}\n\n"
+
+        markdown_content += figure_section
+
+    total_time = time.time() - start_time
+    logger.info(
+        f"[Docling+VLM] Completed {file_path.name}: {len(markdown_content)} chars, "
+        f"{picture_count} pictures processed in {total_time:.1f}s"
+    )
+
+    return markdown_content
 
 
 def _extract_pdf_pypdf(file_bytes: bytes, password: str = None) -> str:
@@ -1262,9 +1490,103 @@ async def pipeline_enqueue_file(
             )
             return False, track_id
 
-        # Process based on file type
+        # RAG-Anything preprocessing for multimodal files
+        if (
+            global_args.document_loading_engine == "RAGANYTHING"
+            and ext in get_supported_multimodal_extensions()
+            and _is_raganything_available()
+        ):
+            # Register doc_status early so users can see preprocessing progress
+            from datetime import datetime, timezone
+            preprocessing_doc_id = compute_mdhash_id(file_path.name, prefix="doc-")
+            await rag.doc_status.upsert({
+                preprocessing_doc_id: {
+                    "status": DocStatus.PENDING,
+                    "content_summary": f"[RAG-Anything] Extracting: {file_path.name}",
+                    "content_length": 0,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                    "updated_at": datetime.now(timezone.utc).isoformat(),
+                    "file_path": file_path.name,
+                    "track_id": track_id,
+                }
+            })
+            logger.info(f"Registered {file_path.name} for RAG-Anything preprocessing")
+
+            try:
+                vision_func = None
+                if global_args.raganything_vision_model:
+                    vision_func = create_vision_model_func(
+                        model=global_args.raganything_vision_model,
+                        api_key=global_args.raganything_vision_api_key,
+                        api_base=global_args.raganything_vision_api_base,
+                    )
+
+                # Get or create block mapping storage for this workspace
+                workspace_key = rag.workspace or ""
+                if workspace_key not in _block_mapping_storages:
+                    _block_mapping_storages[workspace_key] = JsonBlockMappingStorage(
+                        working_dir=str(rag.working_dir),
+                        workspace=workspace_key,
+                    )
+                block_mapping_storage = _block_mapping_storages[workspace_key]
+                await block_mapping_storage.initialize()
+
+                content = await extract_content_with_raganything(
+                    file_path=file_path,
+                    working_dir=str(rag.working_dir),
+                    vision_model_func=vision_func,
+                    enable_image=global_args.raganything_enable_image,
+                    enable_table=global_args.raganything_enable_table,
+                    enable_equation=global_args.raganything_enable_equation,
+                    parser=global_args.raganything_parser,
+                    parse_method=global_args.raganything_parse_method,
+                    language=global_args.summary_language,
+                    ocr_lang=global_args.raganything_ocr_lang,
+                    custom_system_prompt=global_args.vlm_system_prompt,
+                    custom_user_prompt=global_args.vlm_user_prompt,
+                    block_mapping_storage=block_mapping_storage,
+                )
+
+                # Remove temporary preprocessing status (real status will be created by enqueue)
+                await rag.doc_status.delete([preprocessing_doc_id])
+
+                if content and content.strip():
+                    logger.info(
+                        f"RAG-Anything extracted {len(content)} chars from {file_path.name}"
+                    )
+                else:
+                    content = ""
+                    logger.warning(f"RAG-Anything: no content from {file_path.name}")
+
+            except Exception as e:
+                # Remove temporary preprocessing status on failure too
+                try:
+                    await rag.doc_status.delete([preprocessing_doc_id])
+                except Exception:
+                    pass
+                logger.warning(f"RAG-Anything failed for {file_path.name}: {e}")
+                content = ""
+
+        # Handle image files without RAG-Anything
+        if not content and is_image_file(file_path):
+            error_files = [
+                {
+                    "file_path": str(file_path.name),
+                    "error_description": "[File Extraction]Image files require RAG-Anything",
+                    "original_error": "Set DOCUMENT_LOADING_ENGINE=RAGANYTHING",
+                    "file_size": file_size,
+                }
+            ]
+            await rag.apipeline_enqueue_error_documents(error_files, track_id)
+            logger.error(f"Image file {file_path.name} requires RAG-Anything")
+            return False, track_id
+
+        # Process based on file type (skip if content already extracted by RAG-Anything)
         try:
             match ext:
+                case _ if content:
+                    # Content already extracted by RAG-Anything, skip default processing
+                    pass
                 case (
                     ".txt"
                     | ".md"
@@ -1364,9 +1686,23 @@ async def pipeline_enqueue_file(
                             global_args.document_loading_engine == "DOCLING"
                             and _is_docling_available()
                         ):
-                            content = await asyncio.to_thread(
-                                _convert_with_docling, file_path
-                            )
+                            # Check if Docling VLM is enabled
+                            if (
+                                global_args.docling_enable_vlm
+                                and global_args.docling_vision_model
+                            ):
+                                content = await _convert_with_docling_vlm(
+                                    file_path=file_path,
+                                    vision_model=global_args.docling_vision_model,
+                                    api_key=global_args.docling_vision_api_key,
+                                    api_base=global_args.docling_vision_api_base,
+                                    images_scale=global_args.docling_images_scale,
+                                    language=global_args.summary_language,
+                                )
+                            else:
+                                content = await asyncio.to_thread(
+                                    _convert_with_docling, file_path
+                                )
                         else:
                             if (
                                 global_args.document_loading_engine == "DOCLING"
@@ -1872,6 +2208,24 @@ async def background_delete_documents(
                     logger.info(success_msg)
                     async with pipeline_status_lock:
                         pipeline_status["history_messages"].append(success_msg)
+
+                    # Delete block mapping data for this document
+                    try:
+                        workspace_key = rag.workspace or ""
+                        if workspace_key in _block_mapping_storages:
+                            block_storage = _block_mapping_storages[workspace_key]
+                            # Try to delete by doc_id first
+                            deleted = await block_storage.delete(doc_id)
+                            # Also try to delete by file_path (RAG-Anything uses different doc_id)
+                            if not deleted and result.file_path:
+                                mappings = await block_storage.get_by_file_path(result.file_path)
+                                if mappings:
+                                    await block_storage.delete(mappings.doc_id)
+                                    deleted = True
+                            if deleted:
+                                logger.debug(f"Block mappings deleted for document: {doc_id}")
+                    except Exception as block_err:
+                        logger.debug(f"Block mapping deletion skipped for {doc_id}: {block_err}")
 
                     # Handle file deletion if requested and file_path is available
                     if (
@@ -2432,6 +2786,24 @@ def create_document_routes(
                 if "history_messages" in pipeline_status:
                     pipeline_status["history_messages"].append(error_message)
                 return ClearDocumentsResponse(status="fail", message=error_message)
+
+            # Drop block mapping storage
+            try:
+                workspace_key = rag.workspace or ""
+                if workspace_key in _block_mapping_storages:
+                    block_storage = _block_mapping_storages[workspace_key]
+                    await block_storage.drop()
+                    logger.info(f"Successfully dropped block mapping storage for workspace: {workspace_key}")
+                    if "history_messages" in pipeline_status:
+                        pipeline_status["history_messages"].append(
+                            "Successfully dropped block mapping storage"
+                        )
+            except Exception as block_err:
+                logger.warning(f"Failed to drop block mapping storage: {block_err}")
+                if "history_messages" in pipeline_status:
+                    pipeline_status["history_messages"].append(
+                        f"Warning: Failed to drop block mapping storage: {block_err}"
+                    )
 
             # Log file deletion start
             if "history_messages" in pipeline_status:
@@ -3054,6 +3426,123 @@ def create_document_routes(
             raise HTTPException(status_code=500, detail=str(e))
 
     @router.get(
+        "/{doc_id}/content",
+        response_model=DocContentResponse,
+        dependencies=[Depends(combined_auth)],
+    )
+    async def get_document_content(doc_id: str) -> DocContentResponse:
+        """
+        Get the full content of a document by its ID.
+
+        This endpoint retrieves the complete text content of a document from the full_docs storage.
+        This is useful for viewing the original document content that was indexed.
+
+        Args:
+            doc_id (str): The document identifier (e.g., "doc-abc123def456")
+
+        Returns:
+            DocContentResponse: A response object containing:
+                - id: Document identifier
+                - content: Full document text content
+                - file_path: Original file path of the document
+
+        Raises:
+            HTTPException: 404 if the document is not found, 500 for other errors.
+        """
+        try:
+            content_data = await rag.full_docs.get_by_id(doc_id)
+            if not content_data:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Document with ID '{doc_id}' not found in full_docs storage",
+                )
+
+            return DocContentResponse(
+                id=doc_id,
+                content=content_data.get("content", ""),
+                file_path=content_data.get("file_path", ""),
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting document content for {doc_id}: {str(e)}")
+            logger.error(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get(
+        "/vlm_prompts",
+        response_model=VLMPromptsResponse,
+        dependencies=[Depends(combined_auth)],
+    )
+    async def get_vlm_prompts() -> VLMPromptsResponse:
+        """
+        Get current VLM (Vision Language Model) prompts.
+
+        This endpoint returns the system and user prompts used for image
+        description in RAG-Anything multimodal document processing.
+        If custom prompts are set, those are returned. Otherwise,
+        default prompts based on the current summary language are returned.
+
+        Returns:
+            VLMPromptsResponse: Current VLM prompts and language setting.
+        """
+        language = global_args.summary_language
+
+        # Get custom prompts or defaults based on language
+        system_prompt = global_args.vlm_system_prompt
+        user_prompt = global_args.vlm_user_prompt
+
+        # If custom prompts are not set, use language-based defaults
+        if not system_prompt:
+            system_prompt = _get_vision_system_prompt(language)
+        if not user_prompt:
+            user_prompt = _get_vision_prompt(language)
+
+        return VLMPromptsResponse(
+            system_prompt=system_prompt,
+            user_prompt=user_prompt,
+            language=language,
+        )
+
+    @router.put(
+        "/vlm_prompts",
+        response_model=VLMPromptsResponse,
+        dependencies=[Depends(combined_auth)],
+    )
+    async def update_vlm_prompts(request: VLMPromptsUpdateRequest) -> VLMPromptsResponse:
+        """
+        Update VLM (Vision Language Model) prompts.
+
+        This endpoint updates the system and user prompts used for image
+        description in RAG-Anything multimodal document processing.
+        Set to empty string to revert to language-based defaults.
+
+        Args:
+            request: VLMPromptsUpdateRequest with new system and user prompts.
+
+        Returns:
+            VLMPromptsResponse: Updated VLM prompts and language setting.
+        """
+        # Update the global args with new prompts
+        global_args.vlm_system_prompt = request.system_prompt
+        global_args.vlm_user_prompt = request.user_prompt
+
+        language = global_args.summary_language
+
+        # Get the effective prompts (custom or defaults)
+        effective_system = request.system_prompt if request.system_prompt else _get_vision_system_prompt(language)
+        effective_user = request.user_prompt if request.user_prompt else _get_vision_prompt(language)
+
+        logger.info(f"VLM prompts updated. Custom system: {bool(request.system_prompt)}, Custom user: {bool(request.user_prompt)}")
+
+        return VLMPromptsResponse(
+            system_prompt=effective_system,
+            user_prompt=effective_user,
+            language=language,
+        )
+
+    @router.get(
         "/status_counts",
         response_model=StatusCountsResponse,
         dependencies=[Depends(combined_auth)],
@@ -3187,6 +3676,519 @@ def create_document_routes(
         except Exception as e:
             logger.error(f"Error requesting pipeline cancellation: {str(e)}")
             logger.error(traceback.format_exc())
+            raise HTTPException(status_code=500, detail=str(e))
+
+    # =====================================================================
+    # Block Mapping Endpoints (for debugging document parsing)
+    # =====================================================================
+
+    class BlockMappingResponse(BaseModel):
+        """Response model for a single block mapping."""
+
+        block_index: int
+        page_idx: int
+        block_type: str
+        bbox: list[float]
+        original_content: str
+        converted_content: str
+        processing_time: Optional[float] = None
+        status: str
+        error_message: Optional[str] = None
+
+    class DocumentBlockMappingsResponse(BaseModel):
+        """Response model for document block mappings."""
+
+        doc_id: str
+        file_path: str
+        parser: str
+        total_blocks: int
+        processed_blocks: int
+        total_processing_time: float
+        created_at: str
+        text_blocks: int
+        image_blocks: int
+        table_blocks: int
+        equation_blocks: int
+        failed_blocks: int
+        blocks: list[BlockMappingResponse]
+
+    class BlockMappingSummaryResponse(BaseModel):
+        """Summary response for block mappings list."""
+
+        doc_id: str
+        file_path: str
+        parser: str
+        total_blocks: int
+        processed_blocks: int
+        total_processing_time: float
+        created_at: str
+        text_blocks: int
+        image_blocks: int
+        table_blocks: int
+        equation_blocks: int
+        failed_blocks: int
+
+    class BlockMappingsListResponse(BaseModel):
+        """Response model for block mappings list."""
+
+        mappings: list[BlockMappingSummaryResponse]
+        total: int
+        page: int
+        page_size: int
+
+    @router.get(
+        "/block_mappings",
+        response_model=BlockMappingsListResponse,
+        dependencies=[Depends(combined_auth)],
+        summary="List block mappings for all documents",
+        description="Get a paginated list of block mapping summaries for all processed documents.",
+    )
+    async def list_block_mappings(
+        page: int = 1,
+        page_size: int = 50,
+    ):
+        """List block mappings for all documents.
+
+        Returns a paginated list of document block mapping summaries.
+        Use GET /documents/block_mappings/{doc_id} to get full block details.
+
+        Args:
+            page: Page number (1-based)
+            page_size: Items per page (default 50)
+
+        Returns:
+            BlockMappingsListResponse with summaries and pagination info
+        """
+        try:
+            workspace_key = rag.workspace or ""
+            if workspace_key not in _block_mapping_storages:
+                _block_mapping_storages[workspace_key] = JsonBlockMappingStorage(
+                    working_dir=str(rag.working_dir),
+                    workspace=workspace_key,
+                )
+            storage = _block_mapping_storages[workspace_key]
+            await storage.initialize()
+
+            summaries, total = await storage.get_all_summaries(page=page, page_size=page_size)
+
+            return BlockMappingsListResponse(
+                mappings=[BlockMappingSummaryResponse(**s) for s in summaries],
+                total=total,
+                page=page,
+                page_size=page_size,
+            )
+
+        except Exception as e:
+            logger.error(f"Error listing block mappings: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get(
+        "/block_mappings/{doc_id}",
+        response_model=DocumentBlockMappingsResponse,
+        dependencies=[Depends(combined_auth)],
+        summary="Get block mappings for a document",
+        description="Get detailed block mappings for a specific document by its ID.",
+    )
+    async def get_block_mappings(doc_id: str):
+        """Get block mappings for a specific document.
+
+        Returns the full block mapping details including all blocks
+        with their original content, converted content, and processing info.
+
+        Args:
+            doc_id: The document ID
+
+        Returns:
+            DocumentBlockMappingsResponse with full block details
+
+        Raises:
+            HTTPException 404: Document block mappings not found
+        """
+        try:
+            workspace_key = rag.workspace or ""
+            if workspace_key not in _block_mapping_storages:
+                _block_mapping_storages[workspace_key] = JsonBlockMappingStorage(
+                    working_dir=str(rag.working_dir),
+                    workspace=workspace_key,
+                )
+            storage = _block_mapping_storages[workspace_key]
+            await storage.initialize()
+
+            mappings = await storage.get_by_doc_id(doc_id)
+            if mappings is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block mappings not found for document: {doc_id}"
+                )
+
+            return DocumentBlockMappingsResponse(
+                doc_id=mappings.doc_id,
+                file_path=mappings.file_path,
+                parser=mappings.parser,
+                total_blocks=mappings.total_blocks,
+                processed_blocks=mappings.processed_blocks,
+                total_processing_time=mappings.total_processing_time,
+                created_at=mappings.created_at,
+                text_blocks=mappings.text_blocks,
+                image_blocks=mappings.image_blocks,
+                table_blocks=mappings.table_blocks,
+                equation_blocks=mappings.equation_blocks,
+                failed_blocks=mappings.failed_blocks,
+                blocks=[
+                    BlockMappingResponse(
+                        block_index=b.block_index,
+                        page_idx=b.page_idx,
+                        block_type=b.block_type,
+                        bbox=b.bbox,
+                        original_content=b.original_content,
+                        converted_content=b.converted_content,
+                        processing_time=b.processing_time,
+                        status=b.status,
+                        error_message=b.error_message,
+                    )
+                    for b in mappings.blocks
+                ],
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting block mappings: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get(
+        "/block_mappings/by_file/{file_path:path}",
+        response_model=DocumentBlockMappingsResponse,
+        dependencies=[Depends(combined_auth)],
+        summary="Get block mappings by file path",
+        description="Get detailed block mappings for a document by its file path.",
+    )
+    async def get_block_mappings_by_file(file_path: str):
+        """Get block mappings by file path.
+
+        Args:
+            file_path: The file path to search for
+
+        Returns:
+            DocumentBlockMappingsResponse with full block details
+
+        Raises:
+            HTTPException 404: Document block mappings not found
+        """
+        try:
+            workspace_key = rag.workspace or ""
+            if workspace_key not in _block_mapping_storages:
+                _block_mapping_storages[workspace_key] = JsonBlockMappingStorage(
+                    working_dir=str(rag.working_dir),
+                    workspace=workspace_key,
+                )
+            storage = _block_mapping_storages[workspace_key]
+            await storage.initialize()
+
+            mappings = await storage.get_by_file_path(file_path)
+            if mappings is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block mappings not found for file: {file_path}"
+                )
+
+            return DocumentBlockMappingsResponse(
+                doc_id=mappings.doc_id,
+                file_path=mappings.file_path,
+                parser=mappings.parser,
+                total_blocks=mappings.total_blocks,
+                processed_blocks=mappings.processed_blocks,
+                total_processing_time=mappings.total_processing_time,
+                created_at=mappings.created_at,
+                text_blocks=mappings.text_blocks,
+                image_blocks=mappings.image_blocks,
+                table_blocks=mappings.table_blocks,
+                equation_blocks=mappings.equation_blocks,
+                failed_blocks=mappings.failed_blocks,
+                blocks=[
+                    BlockMappingResponse(
+                        block_index=b.block_index,
+                        page_idx=b.page_idx,
+                        block_type=b.block_type,
+                        bbox=b.bbox,
+                        original_content=b.original_content,
+                        converted_content=b.converted_content,
+                        processing_time=b.processing_time,
+                        status=b.status,
+                        error_message=b.error_message,
+                    )
+                    for b in mappings.blocks
+                ],
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting block mappings by file: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.delete(
+        "/block_mappings/{doc_id}",
+        dependencies=[Depends(combined_auth)],
+        summary="Delete block mappings for a document",
+        description="Delete block mappings for a specific document.",
+    )
+    async def delete_block_mappings(doc_id: str):
+        """Delete block mappings for a document.
+
+        Args:
+            doc_id: The document ID
+
+        Returns:
+            Status message
+        """
+        try:
+            workspace_key = rag.workspace or ""
+            if workspace_key not in _block_mapping_storages:
+                return {"status": "not_found", "message": "No block mappings found"}
+
+            storage = _block_mapping_storages[workspace_key]
+            await storage.initialize()
+
+            deleted = await storage.delete(doc_id)
+            if deleted:
+                return {"status": "success", "message": f"Block mappings deleted for {doc_id}"}
+            else:
+                return {"status": "not_found", "message": f"No block mappings found for {doc_id}"}
+
+        except Exception as e:
+            logger.error(f"Error deleting block mappings: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get(
+        "/block_mappings/{doc_id}/image/{block_index}",
+        dependencies=[Depends(combined_auth)],
+        summary="Get image for a specific block",
+        description="Get the image file for an image block. Returns the actual image file.",
+        responses={
+            200: {
+                "content": {"image/png": {}, "image/jpeg": {}, "image/gif": {}, "image/webp": {}},
+                "description": "Image file",
+            },
+            404: {"description": "Image not found"},
+        },
+    )
+    async def get_block_image(doc_id: str, block_index: int):
+        """Get image for a specific block.
+
+        Returns the actual image file for an image block. This allows
+        the web UI to display the original image that was processed.
+
+        Args:
+            doc_id: The document ID
+            block_index: The block index (0-based)
+
+        Returns:
+            FileResponse with the image file
+
+        Raises:
+            HTTPException 404: Block or image not found
+            HTTPException 400: Block is not an image type
+        """
+        try:
+            workspace_key = rag.workspace or ""
+            if workspace_key not in _block_mapping_storages:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block mappings not found for document: {doc_id}"
+                )
+
+            storage = _block_mapping_storages[workspace_key]
+            await storage.initialize()
+
+            mappings = await storage.get_by_doc_id(doc_id)
+            if mappings is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block mappings not found for document: {doc_id}"
+                )
+
+            # Find the block
+            block = None
+            for b in mappings.blocks:
+                if b.block_index == block_index:
+                    block = b
+                    break
+
+            if block is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block {block_index} not found in document {doc_id}"
+                )
+
+            if block.block_type != "image":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Block {block_index} is not an image (type: {block.block_type})"
+                )
+
+            # Get image path from original_content (which stores the img_path)
+            img_path = block.original_content
+            if not img_path:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No image path stored for block {block_index}"
+                )
+
+            image_path = Path(img_path)
+            if not image_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Image file not found: {img_path}"
+                )
+
+            # Determine media type
+            suffix = image_path.suffix.lower()
+            media_types = {
+                ".png": "image/png",
+                ".jpg": "image/jpeg",
+                ".jpeg": "image/jpeg",
+                ".gif": "image/gif",
+                ".webp": "image/webp",
+                ".bmp": "image/bmp",
+                ".tiff": "image/tiff",
+                ".tif": "image/tiff",
+            }
+            media_type = media_types.get(suffix, "image/png")
+
+            return FileResponse(
+                path=str(image_path),
+                media_type=media_type,
+                filename=image_path.name,
+            )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting block image: {str(e)}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    @router.get(
+        "/block_mappings/{doc_id}/image/{block_index}/thumbnail",
+        dependencies=[Depends(combined_auth)],
+        summary="Get thumbnail for an image block",
+        description="Get a thumbnail version of the image (max 200x200 pixels).",
+        responses={
+            200: {
+                "content": {"image/png": {}},
+                "description": "Thumbnail image",
+            },
+            404: {"description": "Image not found"},
+        },
+    )
+    async def get_block_image_thumbnail(doc_id: str, block_index: int, max_size: int = 200):
+        """Get thumbnail for an image block.
+
+        Returns a resized thumbnail of the image for faster loading in lists.
+
+        Args:
+            doc_id: The document ID
+            block_index: The block index (0-based)
+            max_size: Maximum width/height in pixels (default 200)
+
+        Returns:
+            Response with the thumbnail image as PNG
+
+        Raises:
+            HTTPException 404: Block or image not found
+        """
+        try:
+            workspace_key = rag.workspace or ""
+            if workspace_key not in _block_mapping_storages:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block mappings not found for document: {doc_id}"
+                )
+
+            storage = _block_mapping_storages[workspace_key]
+            await storage.initialize()
+
+            mappings = await storage.get_by_doc_id(doc_id)
+            if mappings is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block mappings not found for document: {doc_id}"
+                )
+
+            # Find the block
+            block = None
+            for b in mappings.blocks:
+                if b.block_index == block_index:
+                    block = b
+                    break
+
+            if block is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Block {block_index} not found in document {doc_id}"
+                )
+
+            if block.block_type != "image":
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Block {block_index} is not an image (type: {block.block_type})"
+                )
+
+            img_path = block.original_content
+            if not img_path:
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"No image path stored for block {block_index}"
+                )
+
+            image_path = Path(img_path)
+            if not image_path.exists():
+                raise HTTPException(
+                    status_code=404,
+                    detail=f"Image file not found: {img_path}"
+                )
+
+            # Generate thumbnail using PIL
+            try:
+                from PIL import Image
+                import io
+
+                with Image.open(image_path) as img:
+                    # Convert to RGB if necessary (for PNG with transparency)
+                    if img.mode in ('RGBA', 'LA', 'P'):
+                        # Create white background
+                        background = Image.new('RGB', img.size, (255, 255, 255))
+                        if img.mode == 'P':
+                            img = img.convert('RGBA')
+                        background.paste(img, mask=img.split()[-1] if img.mode == 'RGBA' else None)
+                        img = background
+
+                    # Create thumbnail
+                    img.thumbnail((max_size, max_size), Image.Resampling.LANCZOS)
+
+                    # Save to bytes
+                    img_bytes = io.BytesIO()
+                    img.save(img_bytes, format='PNG')
+                    img_bytes.seek(0)
+
+                    return Response(
+                        content=img_bytes.getvalue(),
+                        media_type="image/png",
+                    )
+
+            except ImportError:
+                # PIL not available, return original image
+                logger.warning("PIL not available, returning original image instead of thumbnail")
+                return FileResponse(
+                    path=str(image_path),
+                    media_type="image/png",
+                    filename=image_path.name,
+                )
+
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Error getting block image thumbnail: {str(e)}")
             raise HTTPException(status_code=500, detail=str(e))
 
     return router

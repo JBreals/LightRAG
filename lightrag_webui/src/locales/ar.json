@@ -99,7 +99,7 @@
         "error": "فشل رفع بعض الملفات"
       },
       "generalError": "فشل الرفع\n{{error}}",
-      "fileTypes": "الأنواع المدعومة: TXT، MD، DOCX، PDF، PPTX، XLSX، RTF، ODT، EPUB، HTML، HTM، TEX، JSON، XML، YAML، YML، CSV، LOG، CONF، INI، PROPERTIES، SQL، BAT، SH، C، CPP، PY، JAVA، JS، TS، SWIFT، GO، RB، PHP، CSS، SCSS، LESS",
+      "fileTypes": "الأنواع المدعومة: TXT، MD، DOCX، PDF، PPTX، XLSX، DOC، PPT، XLS، PNG، JPG، JPEG، GIF، WEBP، BMP، TIFF، RTF، ODT، EPUB، HTML، HTM، TEX، JSON، XML، YAML، YML، CSV، LOG، CONF، INI، PROPERTIES، SQL، BAT، SH، C، CPP، PY، JAVA، JS، TS، SWIFT، GO، RB، PHP، CSS، SCSS، LESS",
       "fileUploader": {
         "singleFileLimit": "لا يمكن رفع أكثر من ملف واحد في المرة الواحدة",
         "maxFilesLimit": "لا يمكن رفع أكثر من {{count}} ملفات",
@@ -120,6 +120,8 @@
       "refreshTooltip": "إعادة تعيين قائمة المستندات",
       "pipelineStatusButton": "خط المعالجة",
       "pipelineStatusTooltip": "عرض حالة خط معالجة المستندات",
+      "vlmPromptButton": "موجه VLM",
+      "vlmPromptTooltip": "تكوين موجهات نموذج اللغة المرئية لوصف الصور",
       "uploadedTitle": "المستندات المرفوعة",
       "uploadedDescription": "قائمة المستندات المرفوعة وحالاتها.",
       "emptyTitle": "لا توجد مستندات",
@@ -177,6 +179,39 @@
       "cancelNotBusy": "خط الأنابيب غير قيد التشغيل، لا حاجة للإلغاء",
       "errors": {
         "fetchFailed": "فشل في جلب حالة خط الأنابيب\n{{error}}"
+      }
+    },
+    "documentContent": {
+      "title": "محتوى المستند",
+      "description": "عرض المحتوى الكامل للمستند",
+      "clickToView": "انقر لعرض المحتوى الكامل",
+      "contentLength": "طول المحتوى: {{length}} حرف",
+      "copy": "نسخ",
+      "copied": "تم النسخ!",
+      "copySuccess": "تم نسخ المحتوى إلى الحافظة",
+      "copyFailed": "فشل نسخ المحتوى",
+      "emptyContent": "(لا يوجد محتوى)",
+      "errors": {
+        "fetchFailed": "فشل في جلب محتوى المستند\n{{error}}"
+      }
+    },
+    "vlmPrompt": {
+      "title": "إعدادات موجه VLM",
+      "description": "تكوين الموجهات لنموذج اللغة المرئية المستخدم في معالجة المستندات متعددة الوسائط",
+      "language": "اللغة",
+      "systemPromptLabel": "موجه النظام",
+      "systemPromptPlaceholder": "أدخل موجه النظام لتحليل الصور...",
+      "systemPromptHelp": "تعليمات لـ Vision LLM حول كيفية تحليل الصور. اتركه فارغاً لاستخدام القيم الافتراضية.",
+      "userPromptLabel": "موجه المستخدم",
+      "userPromptPlaceholder": "أدخل موجه المستخدم لتحليل الصور...",
+      "userPromptHelp": "الموجه الفعلي المرسل مع كل صورة. اتركه فارغاً لاستخدام القيم الافتراضية.",
+      "resetToDefaults": "إعادة التعيين للافتراضي",
+      "saveSuccess": "تم حفظ موجهات VLM بنجاح",
+      "resetSuccess": "تم إعادة تعيين موجهات VLM للافتراضي",
+      "errors": {
+        "fetchFailed": "فشل في جلب موجهات VLM\n{{error}}",
+        "saveFailed": "فشل في حفظ موجهات VLM\n{{error}}",
+        "resetFailed": "فشل في إعادة تعيين موجهات VLM\n{{error}}"
       }
     }
   },

@@ -99,7 +99,7 @@
         "error": "Some files failed to upload"
       },
       "generalError": "Upload Failed\n{{error}}",
-      "fileTypes": "Supported types: TXT, MD, DOCX, PDF, PPTX, XLSX, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
+      "fileTypes": "Supported types: TXT, MD, DOCX, PDF, PPTX, XLSX, DOC, PPT, XLS, PNG, JPG, JPEG, GIF, WEBP, BMP, TIFF, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
       "fileUploader": {
         "singleFileLimit": "Cannot upload more than 1 file at a time",
         "maxFilesLimit": "Cannot upload more than {{count}} files",
@@ -120,6 +120,8 @@
       "refreshTooltip": "Reset document list",
       "pipelineStatusButton": "Pipeline",
       "pipelineStatusTooltip": "View document processing pipeline status",
+      "vlmPromptButton": "VLM Prompt",
+      "vlmPromptTooltip": "Configure Vision Language Model prompts for image description",
       "uploadedTitle": "Uploaded Documents",
       "uploadedDescription": "List of uploaded documents and their statuses.",
       "emptyTitle": "No Documents",
@@ -178,7 +180,58 @@
       "errors": {
         "fetchFailed": "Failed to fetch pipeline status\n{{error}}"
       }
+    },
+    "documentContent": {
+      "title": "Document Content",
+      "description": "View the full content of the document",
+      "clickToView": "Click to view full content",
+      "contentLength": "Content length: {{length}} characters",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "copySuccess": "Content copied to clipboard",
+      "copyFailed": "Failed to copy content",
+      "emptyContent": "(No content)",
+      "errors": {
+        "fetchFailed": "Failed to fetch document content\n{{error}}"
+      }
+    },
+    "vlmPrompt": {
+      "title": "VLM Prompt Settings",
+      "description": "Configure prompts for Vision Language Model used in multimodal document processing",
+      "language": "Language",
+      "systemPromptLabel": "System Prompt",
+      "systemPromptPlaceholder": "Enter system prompt for image analysis...",
+      "systemPromptHelp": "Instructions for the Vision LLM on how to analyze images. Leave empty to use language-based defaults.",
+      "userPromptLabel": "User Prompt",
+      "userPromptPlaceholder": "Enter user prompt for image analysis...",
+      "userPromptHelp": "The actual prompt sent with each image. Leave empty to use language-based defaults.",
+      "resetToDefaults": "Reset to Defaults",
+      "saveSuccess": "VLM prompts saved successfully",
+      "resetSuccess": "VLM prompts reset to defaults",
+      "errors": {
+        "fetchFailed": "Failed to fetch VLM prompts\n{{error}}",
+        "saveFailed": "Failed to save VLM prompts\n{{error}}",
+        "resetFailed": "Failed to reset VLM prompts\n{{error}}"
+      }
     }
+  },
+  "blockMapping": {
+    "tabs": {
+      "content": "Content",
+      "all": "All Blocks",
+      "text": "Text",
+      "image": "Image",
+      "table": "Table",
+      "equation": "Equation"
+    },
+    "blocks": "blocks",
+    "page": "Page",
+    "original": "Original",
+    "converted": "Converted",
+    "vlmOutput": "VLM Output",
+    "failed": "Failed",
+    "noBlocks": "No blocks found",
+    "clickToEnlarge": "Click to enlarge"
   },
   "graphPanel": {
     "dataIsTruncated": "Graph data is truncated to Max Nodes",

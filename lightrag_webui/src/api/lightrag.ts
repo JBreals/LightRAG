@@ -1019,3 +1019,166 @@ export const getDocumentStatusCounts = async (): Promise<StatusCountsResponse> =
   const response = await axiosInstance.get('/documents/status_counts')
   return response.data
 }
+
+export type DocContentResponse = {
+  id: string
+  content: string
+  file_path: string
+}
+
+/**
+ * Get the full content of a document by its ID
+ * @param docId The document identifier
+ * @returns Promise with document content response
+ */
+export const getDocumentContent = async (docId: string): Promise<DocContentResponse> => {
+  const response = await axiosInstance.get(`/documents/${encodeURIComponent(docId)}/content`)
+  return response.data
+}
+
+export type VLMPromptsResponse = {
+  system_prompt: string
+  user_prompt: string
+  language: string
+}
+
+export type VLMPromptsUpdateRequest = {
+  system_prompt: string
+  user_prompt: string
+}
+
+/**
+ * Get current VLM (Vision Language Model) prompts
+ * @returns Promise with VLM prompts response
+ */
+export const getVLMPrompts = async (): Promise<VLMPromptsResponse> => {
+  const response = await axiosInstance.get('/documents/vlm_prompts')
+  return response.data
+}
+
+/**
+ * Update VLM (Vision Language Model) prompts
+ * @param prompts The new prompts (empty string to use defaults)
+ * @returns Promise with updated VLM prompts response
+ */
+export const updateVLMPrompts = async (prompts: VLMPromptsUpdateRequest): Promise<VLMPromptsResponse> => {
+  const response = await axiosInstance.put('/documents/vlm_prompts', prompts)
+  return response.data
+}
+
+// =====================================================================
+// Block Mapping Types and API Functions
+// =====================================================================
+
+export interface BlockMapping {
+  block_index: number
+  page_idx: number
+  block_type: string  // text, image, table, equation
+  bbox: number[]  // [x0, y0, x1, y1]
+  original_content: string
+  converted_content: string
+  processing_time: number | null
+  status: string  // success, failed, skipped
+  error_message: string | null
+}
+
+export interface DocumentBlockMappings {
+  doc_id: string
+  file_path: string
+  parser: string  // mineru, docling
+  total_blocks: number
+  processed_blocks: number
+  total_processing_time: number
+  created_at: string
+  text_blocks: number
+  image_blocks: number
+  table_blocks: number
+  equation_blocks: number
+  failed_blocks: number
+  blocks: BlockMapping[]
+}
+
+export interface BlockMappingSummary {
+  doc_id: string
+  file_path: string
+  parser: string
+  total_blocks: number
+  processed_blocks: number
+  total_processing_time: number
+  created_at: string
+  text_blocks: number
+  image_blocks: number
+  table_blocks: number
+  equation_blocks: number
+  failed_blocks: number
+}
+
+export interface BlockMappingsListResponse {
+  mappings: BlockMappingSummary[]
+  total: number
+  page: number
+  page_size: number
+}
+
+/**
+ * Get block mappings for a document by doc_id
+ * @param docId The document ID
+ * @returns Promise with document block mappings
+ */
+export const getBlockMappings = async (docId: string): Promise<DocumentBlockMappings> => {
+  const response = await axiosInstance.get(`/documents/block_mappings/${docId}`)
+  return response.data
+}
+
+/**
+ * Get block mappings for a document by file path
+ * @param filePath The file path (can be just filename)
+ * @returns Promise with document block mappings
+ */
+export const getBlockMappingsByFilePath = async (filePath: string): Promise<DocumentBlockMappings> => {
+  const response = await axiosInstance.get(`/documents/block_mappings/by_file/${encodeURIComponent(filePath)}`)
+  return response.data
+}
+
+/**
+ * Get list of all block mapping summaries
+ * @param page Page number (1-based)
+ * @param pageSize Items per page
+ * @returns Promise with block mappings list response
+ */
+export const getBlockMappingsList = async (
+  page: number = 1,
+  pageSize: number = 50
+): Promise<BlockMappingsListResponse> => {
+  const response = await axiosInstance.get('/documents/block_mappings', {
+    params: { page, page_size: pageSize }
+  })
+  return response.data
+}
+
+/**
+ * Get image URL for a block
+ * @param docId The document ID
+ * @param blockIndex The block index
+ * @returns Image URL string
+ */
+export const getBlockImageUrl = (docId: string, blockIndex: number): string => {
+  const baseUrl = axiosInstance.defaults.baseURL || ''
+  return `${baseUrl}/documents/block_mappings/${docId}/image/${blockIndex}`
+}
+
+/**
+ * Get thumbnail URL for a block image
+ * @param docId The document ID
+ * @param blockIndex The block index
+ * @param maxSize Maximum thumbnail size (default 200)
+ * @returns Thumbnail URL string
+ */
+export const getBlockImageThumbnailUrl = (
+  docId: string,
+  blockIndex: number,
+  maxSize: number = 200
+): string => {
+  const baseUrl = axiosInstance.defaults.baseURL || ''
+  return `${baseUrl}/documents/block_mappings/${docId}/image/${blockIndex}/thumbnail?max_size=${maxSize}`
+}

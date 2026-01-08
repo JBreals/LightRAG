@@ -99,7 +99,7 @@
         "error": "一部のファイルのアップロードに失敗しました"
       },
       "generalError": "アップロード失敗\n{{error}}",
-      "fileTypes": "サポートされている形式: TXT, MD, DOCX, PDF, PPTX, XLSX, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
+      "fileTypes": "サポートされている形式: TXT, MD, DOCX, PDF, PPTX, XLSX, DOC, PPT, XLS, PNG, JPG, JPEG, GIF, WEBP, BMP, TIFF, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
       "fileUploader": {
         "singleFileLimit": "一度に1つ以上のファイルをアップロードできません",
         "maxFilesLimit": "{{count}}個を超えるファイルをアップロードできません",
@@ -120,6 +120,8 @@
       "refreshTooltip": "ドキュメントリストをリセット",
       "pipelineStatusButton": "パイプライン",
       "pipelineStatusTooltip": "ドキュメント処理パイプラインのステータスを表示",
+      "vlmPromptButton": "VLMプロンプト",
+      "vlmPromptTooltip": "画像説明用のビジョン言語モデルプロンプトを設定",
       "uploadedTitle": "アップロードされたドキュメント",
       "uploadedDescription": "アップロードされたドキュメントとそのステータスのリスト。",
       "emptyTitle": "ドキュメントなし",
@@ -178,7 +180,58 @@
       "errors": {
         "fetchFailed": "パイプラインステータスの取得に失敗しました\n{{error}}"
       }
+    },
+    "documentContent": {
+      "title": "ドキュメント内容",
+      "description": "ドキュメントの全文を表示",
+      "clickToView": "クリックして全文を表示",
+      "contentLength": "文字数：{{length}} 文字",
+      "copy": "コピー",
+      "copied": "コピーしました！",
+      "copySuccess": "内容をクリップボードにコピーしました",
+      "copyFailed": "内容のコピーに失敗しました",
+      "emptyContent": "（内容なし）",
+      "errors": {
+        "fetchFailed": "ドキュメント内容の取得に失敗しました\n{{error}}"
+      }
+    },
+    "vlmPrompt": {
+      "title": "VLMプロンプト設定",
+      "description": "マルチモーダル文書処理で使用するビジョン言語モデルのプロンプトを設定",
+      "language": "言語",
+      "systemPromptLabel": "システムプロンプト",
+      "systemPromptPlaceholder": "画像分析用のシステムプロンプトを入力...",
+      "systemPromptHelp": "ビジョンLLMが画像を分析する方法の指示。空欄の場合は言語ベースのデフォルトを使用。",
+      "userPromptLabel": "ユーザープロンプト",
+      "userPromptPlaceholder": "画像分析用のユーザープロンプトを入力...",
+      "userPromptHelp": "各画像に送信される実際のプロンプト。空欄の場合は言語ベースのデフォルトを使用。",
+      "resetToDefaults": "デフォルトに戻す",
+      "saveSuccess": "VLMプロンプトを保存しました",
+      "resetSuccess": "VLMプロンプトをデフォルトにリセットしました",
+      "errors": {
+        "fetchFailed": "VLMプロンプトの取得に失敗しました\n{{error}}",
+        "saveFailed": "VLMプロンプトの保存に失敗しました\n{{error}}",
+        "resetFailed": "VLMプロンプトのリセットに失敗しました\n{{error}}"
+      }
     }
+  },
+  "blockMapping": {
+    "tabs": {
+      "content": "コンテンツ",
+      "all": "全ブロック",
+      "text": "テキスト",
+      "image": "画像",
+      "table": "テーブル",
+      "equation": "数式"
+    },
+    "blocks": "ブロック",
+    "page": "ページ",
+    "original": "元のコンテンツ",
+    "converted": "変換結果",
+    "vlmOutput": "VLM出力",
+    "failed": "失敗",
+    "noBlocks": "ブロックが見つかりません",
+    "clickToEnlarge": "クリックして拡大"
   },
   "graphPanel": {
     "dataIsTruncated": "グラフデータは最大ノード数に切り詰められました",

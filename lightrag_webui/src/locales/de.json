@@ -99,7 +99,7 @@
         "error": "Einige Dateien konnten nicht hochgeladen werden"
       },
       "generalError": "Upload fehlgeschlagen\n{{error}}",
-      "fileTypes": "Unterstützte Typen: TXT, MD, DOCX, PDF, PPTX, XLSX, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
+      "fileTypes": "Unterstützte Typen: TXT, MD, DOCX, PDF, PPTX, XLSX, DOC, PPT, XLS, PNG, JPG, JPEG, GIF, WEBP, BMP, TIFF, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
       "fileUploader": {
         "singleFileLimit": "Es kann nicht mehr als 1 Datei gleichzeitig hochgeladen werden",
         "maxFilesLimit": "Es können nicht mehr als {{count}} Dateien hochgeladen werden",
@@ -120,6 +120,8 @@
       "refreshTooltip": "Dokumentenliste zurücksetzen",
       "pipelineStatusButton": "Pipeline",
       "pipelineStatusTooltip": "Status der Dokumentverarbeitungs-Pipeline anzeigen",
+      "vlmPromptButton": "VLM-Prompt",
+      "vlmPromptTooltip": "Konfigurieren Sie die Vision-Sprachmodell-Prompts für die Bildbeschreibung",
       "uploadedTitle": "Hochgeladene Dokumente",
       "uploadedDescription": "Liste der hochgeladenen Dokumente und ihrer Status.",
       "emptyTitle": "Keine Dokumente",
@@ -177,6 +179,39 @@
       "cancelNotBusy": "Pipeline läuft nicht, keine Stornierung erforderlich",
       "errors": {
         "fetchFailed": "Pipeline-Status konnte nicht abgerufen werden\n{{error}}"
+      }
+    },
+    "documentContent": {
+      "title": "Dokumentinhalt",
+      "description": "Vollständigen Dokumentinhalt anzeigen",
+      "clickToView": "Klicken Sie, um den vollständigen Inhalt anzuzeigen",
+      "contentLength": "Inhaltslänge: {{length}} Zeichen",
+      "copy": "Kopieren",
+      "copied": "Kopiert!",
+      "copySuccess": "Inhalt in die Zwischenablage kopiert",
+      "copyFailed": "Kopieren des Inhalts fehlgeschlagen",
+      "emptyContent": "(Kein Inhalt)",
+      "errors": {
+        "fetchFailed": "Dokumentinhalt konnte nicht abgerufen werden\n{{error}}"
+      }
+    },
+    "vlmPrompt": {
+      "title": "VLM-Prompt-Einstellungen",
+      "description": "Konfigurieren Sie Prompts für das Vision-Sprachmodell, das in der multimodalen Dokumentenverarbeitung verwendet wird",
+      "language": "Sprache",
+      "systemPromptLabel": "System-Prompt",
+      "systemPromptPlaceholder": "System-Prompt für Bildanalyse eingeben...",
+      "systemPromptHelp": "Anweisungen für das Vision-LLM zur Bildanalyse. Leer lassen für sprachbasierte Standardwerte.",
+      "userPromptLabel": "Benutzer-Prompt",
+      "userPromptPlaceholder": "Benutzer-Prompt für Bildanalyse eingeben...",
+      "userPromptHelp": "Der tatsächliche Prompt, der mit jedem Bild gesendet wird. Leer lassen für sprachbasierte Standardwerte.",
+      "resetToDefaults": "Auf Standard zurücksetzen",
+      "saveSuccess": "VLM-Prompts erfolgreich gespeichert",
+      "resetSuccess": "VLM-Prompts auf Standard zurückgesetzt",
+      "errors": {
+        "fetchFailed": "Fehler beim Abrufen der VLM-Prompts\n{{error}}",
+        "saveFailed": "Fehler beim Speichern der VLM-Prompts\n{{error}}",
+        "resetFailed": "Fehler beim Zurücksetzen der VLM-Prompts\n{{error}}"
       }
     }
   },

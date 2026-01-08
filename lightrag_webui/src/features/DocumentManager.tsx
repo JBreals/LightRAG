@@ -17,6 +17,7 @@ import Checkbox from '@/components/ui/Checkbox'
 import UploadDocumentsDialog from '@/components/documents/UploadDocumentsDialog'
 import ClearDocumentsDialog from '@/components/documents/ClearDocumentsDialog'
 import DeleteDocumentsDialog from '@/components/documents/DeleteDocumentsDialog'
+import DocumentContentDialog from '@/components/documents/DocumentContentDialog'
 import PaginationControls from '@/components/ui/PaginationControls'
 
 import {
@@ -32,8 +33,9 @@ import { errorMessage } from '@/lib/utils'
 import { toast } from 'sonner'
 import { useBackendState } from '@/stores/state'
 
-import { RefreshCwIcon, ActivityIcon, ArrowUpIcon, ArrowDownIcon, RotateCcwIcon, CheckSquareIcon, XIcon, AlertTriangle, Info } from 'lucide-react'
+import { RefreshCwIcon, ActivityIcon, ArrowUpIcon, ArrowDownIcon, RotateCcwIcon, CheckSquareIcon, XIcon, AlertTriangle, Info, MessageSquareText } from 'lucide-react'
 import PipelineStatusDialog from '@/components/documents/PipelineStatusDialog'
+import VLMPromptDialog from '@/components/documents/VLMPromptDialog'
 
 type StatusFilter = DocStatus | 'all';
 
@@ -219,6 +221,9 @@ export default function DocumentManager() {
   }, []);
 
   const [showPipelineStatus, setShowPipelineStatus] = useState(false)
+  const [showVLMPrompt, setShowVLMPrompt] = useState(false)
+  const [showDocumentContent, setShowDocumentContent] = useState(false)
+  const [selectedDocForContent, setSelectedDocForContent] = useState<{id: string, fileName?: string} | null>(null)
   const { t, i18n } = useTranslation()
   const health = useBackendState.use.health()
   const pipelineBusy = useBackendState.use.pipelineBusy()
@@ -295,6 +300,12 @@ export default function DocumentManager() {
         return prev.filter(id => id !== docId)
       }
     })
+  }, [])
+
+  // Handle view document content
+  const handleViewDocumentContent = useCallback((docId: string, fileName?: string) => {
+    setSelectedDocForContent({ id: docId, fileName })
+    setShowDocumentContent(true)
   }, [])
 
   // Handle deselect all documents
@@ -1145,6 +1156,15 @@ export default function DocumentManager() {
             >
               <ActivityIcon /> {t('documentPanel.documentManager.pipelineStatusButton')}
             </Button>
+            <Button
+              variant="outline"
+              onClick={() => setShowVLMPrompt(true)}
+              side="bottom"
+              tooltip={t('documentPanel.documentManager.vlmPromptTooltip')}
+              size="sm"
+            >
+              <MessageSquareText /> {t('documentPanel.documentManager.vlmPromptButton')}
+            </Button>
           </div>
 
           {/* Pagination Controls in the middle */}
@@ -1192,6 +1212,16 @@ export default function DocumentManager() {
             <PipelineStatusDialog
               open={showPipelineStatus}
               onOpenChange={setShowPipelineStatus}
+            />
+            <VLMPromptDialog
+              open={showVLMPrompt}
+              onOpenChange={setShowVLMPrompt}
+            />
+            <DocumentContentDialog
+              open={showDocumentContent}
+              onOpenChange={setShowDocumentContent}
+              docId={selectedDocForContent?.id || null}
+              fileName={selectedDocForContent?.fileName}
             />
           </div>
         </div>
@@ -1402,13 +1432,16 @@ export default function DocumentManager() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="max-w-xs min-w-45 truncate overflow-visible">
+                          <TableCell
+                            className="max-w-xs min-w-45 truncate overflow-visible cursor-pointer hover:bg-muted/50"
+                            onClick={() => handleViewDocumentContent(doc.id, getDisplayFileName(doc))}
+                          >
                             <div className="group relative overflow-visible tooltip-container">
-                              <div className="truncate">
+                              <div className="truncate text-primary hover:underline">
                                 {doc.content_summary}
                               </div>
                               <div className="invisible group-hover:visible tooltip">
-                                {doc.content_summary}
+                                {t('documentPanel.documentContent.clickToView')}
                               </div>
                             </div>
                           </TableCell>

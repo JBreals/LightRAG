@@ -16,6 +16,12 @@ interface SettingsState {
   documentsPageSize: number
   setDocumentsPageSize: (size: number) => void
 
+  // VLM Prompt settings
+  vlmSystemPrompt: string
+  vlmUserPrompt: string
+  setVlmSystemPrompt: (prompt: string) => void
+  setVlmUserPrompt: (prompt: string) => void
+
   // User prompt history
   userPromptHistory: string[]
   addUserPromptToHistory: (prompt: string) => void
@@ -118,6 +124,10 @@ const useSettingsStoreBase = create<SettingsState>()(
       showFileName: false,
       documentsPageSize: 10,
 
+      // VLM Prompt defaults (empty means use backend defaults)
+      vlmSystemPrompt: '',
+      vlmUserPrompt: '',
+
       retrievalHistory: [],
       userPromptHistory: [],
 
@@ -201,6 +211,10 @@ const useSettingsStoreBase = create<SettingsState>()(
       setShowLegend: (show: boolean) => set({ showLegend: show }),
       setDocumentsPageSize: (size: number) => set({ documentsPageSize: size }),
 
+      // VLM Prompt setters
+      setVlmSystemPrompt: (prompt: string) => set({ vlmSystemPrompt: prompt }),
+      setVlmUserPrompt: (prompt: string) => set({ vlmUserPrompt: prompt }),
+
       // User prompt history methods
       addUserPromptToHistory: (prompt: string) => {
         if (!prompt.trim()) return
@@ -238,7 +252,7 @@ const useSettingsStoreBase = create<SettingsState>()(
     {
       name: 'settings-storage',
       storage: createJSONStorage(() => localStorage),
-      version: 19,
+      version: 20,
       migrate: (state: any, version: number) => {
         if (version < 2) {
           state.showEdgeLabel = false
@@ -340,6 +354,11 @@ const useSettingsStoreBase = create<SettingsState>()(
           if (state.querySettings) {
             delete state.querySettings.response_type
           }
+        }
+        if (version < 20) {
+          // Add VLM prompt fields
+          state.vlmSystemPrompt = ''
+          state.vlmUserPrompt = ''
         }
         return state
       }

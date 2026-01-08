@@ -99,7 +99,7 @@
         "error": "部分檔案上傳失敗"
       },
       "generalError": "上傳失敗\n{{error}}",
-      "fileTypes": "支援的檔案類型：TXT, MD, DOCX, PDF, PPTX, XLSX, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
+      "fileTypes": "支援的檔案類型：TXT, MD, DOCX, PDF, PPTX, XLSX, DOC, PPT, XLS, PNG, JPG, JPEG, GIF, WEBP, BMP, TIFF, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
       "fileUploader": {
         "singleFileLimit": "一次只能上傳一個檔案",
         "maxFilesLimit": "最多只能上傳 {{count}} 個檔案",
@@ -120,6 +120,8 @@
       "refreshTooltip": "重設文件清單",
       "pipelineStatusButton": "管線狀態",
       "pipelineStatusTooltip": "查看文件處理管線狀態",
+      "vlmPromptButton": "VLM提示詞",
+      "vlmPromptTooltip": "配置視覺語言模型的圖像描述提示詞",
       "uploadedTitle": "已上傳文件",
       "uploadedDescription": "已上傳文件清單及其狀態",
       "emptyTitle": "無文件",
@@ -178,7 +180,58 @@
       "errors": {
         "fetchFailed": "獲取流水線狀態失敗\n{{error}}"
       }
+    },
+    "documentContent": {
+      "title": "文件內容",
+      "description": "查看文件完整內容",
+      "clickToView": "點擊查看完整內容",
+      "contentLength": "內容長度：{{length}} 字元",
+      "copy": "複製",
+      "copied": "已複製！",
+      "copySuccess": "內容已複製到剪貼簿",
+      "copyFailed": "複製內容失敗",
+      "emptyContent": "（無內容）",
+      "errors": {
+        "fetchFailed": "獲取文件內容失敗\n{{error}}"
+      }
+    },
+    "vlmPrompt": {
+      "title": "VLM提示詞設定",
+      "description": "配置用於多模態文件處理的視覺語言模型提示詞",
+      "language": "語言",
+      "systemPromptLabel": "系統提示詞",
+      "systemPromptPlaceholder": "輸入圖像分析的系統提示詞...",
+      "systemPromptHelp": "指導視覺語言模型如何分析圖像。留空則使用基於語言的預設值。",
+      "userPromptLabel": "使用者提示詞",
+      "userPromptPlaceholder": "輸入圖像分析的使用者提示詞...",
+      "userPromptHelp": "發送給每張圖像的實際提示詞。留空則使用基於語言的預設值。",
+      "resetToDefaults": "恢復預設",
+      "saveSuccess": "VLM提示詞儲存成功",
+      "resetSuccess": "VLM提示詞已恢復預設",
+      "errors": {
+        "fetchFailed": "獲取VLM提示詞失敗\n{{error}}",
+        "saveFailed": "儲存VLM提示詞失敗\n{{error}}",
+        "resetFailed": "重設VLM提示詞失敗\n{{error}}"
+      }
     }
+  },
+  "blockMapping": {
+    "tabs": {
+      "content": "內容",
+      "all": "所有區塊",
+      "text": "文字",
+      "image": "圖像",
+      "table": "表格",
+      "equation": "公式"
+    },
+    "blocks": "個區塊",
+    "page": "頁",
+    "original": "原始內容",
+    "converted": "轉換結果",
+    "vlmOutput": "VLM輸出",
+    "failed": "失敗",
+    "noBlocks": "未找到區塊",
+    "clickToEnlarge": "點擊放大"
   },
   "graphPanel": {
     "dataIsTruncated": "圖資料已截斷至最大回傳節點數",

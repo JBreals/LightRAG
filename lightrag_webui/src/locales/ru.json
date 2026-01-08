@@ -99,7 +99,7 @@
         "error": "Некоторые файлы не удалось загрузить"
       },
       "generalError": "Ошибка загрузки\n{{error}}",
-      "fileTypes": "Поддерживаемые типы: TXT, MD, DOCX, PDF, PPTX, XLSX, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
+      "fileTypes": "Поддерживаемые типы: TXT, MD, DOCX, PDF, PPTX, XLSX, DOC, PPT, XLS, PNG, JPG, JPEG, GIF, WEBP, BMP, TIFF, RTF, ODT, EPUB, HTML, HTM, TEX, JSON, XML, YAML, YML, CSV, LOG, CONF, INI, PROPERTIES, SQL, BAT, SH, C, CPP, PY, JAVA, JS, TS, SWIFT, GO, RB, PHP, CSS, SCSS, LESS",
       "fileUploader": {
         "singleFileLimit": "Нельзя загрузить более 1 файла за раз",
         "maxFilesLimit": "Нельзя загрузить более {{count}} файлов",
@@ -120,6 +120,8 @@
       "refreshTooltip": "Сбросить список документов",
       "pipelineStatusButton": "Конвейер",
       "pipelineStatusTooltip": "Просмотр статуса конвейера обработки документов",
+      "vlmPromptButton": "VLM-промпт",
+      "vlmPromptTooltip": "Настройка промптов модели компьютерного зрения для описания изображений",
       "uploadedTitle": "Загруженные документы",
       "uploadedDescription": "Список загруженных документов и их статусы.",
       "emptyTitle": "Нет документов",
@@ -177,6 +179,39 @@
       "cancelNotBusy": "Конвейер не запущен, отмена не требуется",
       "errors": {
         "fetchFailed": "Не удалось получить статус конвейера\n{{error}}"
+      }
+    },
+    "documentContent": {
+      "title": "Содержимое документа",
+      "description": "Просмотр полного содержимого документа",
+      "clickToView": "Нажмите для просмотра полного содержимого",
+      "contentLength": "Длина содержимого: {{length}} символов",
+      "copy": "Копировать",
+      "copied": "Скопировано!",
+      "copySuccess": "Содержимое скопировано в буфер обмена",
+      "copyFailed": "Не удалось скопировать содержимое",
+      "emptyContent": "(Нет содержимого)",
+      "errors": {
+        "fetchFailed": "Не удалось получить содержимое документа\n{{error}}"
+      }
+    },
+    "vlmPrompt": {
+      "title": "Настройки VLM-промптов",
+      "description": "Настройка промптов для модели компьютерного зрения, используемой при обработке мультимодальных документов",
+      "language": "Язык",
+      "systemPromptLabel": "Системный промпт",
+      "systemPromptPlaceholder": "Введите системный промпт для анализа изображений...",
+      "systemPromptHelp": "Инструкции для Vision LLM по анализу изображений. Оставьте пустым для использования значений по умолчанию.",
+      "userPromptLabel": "Пользовательский промпт",
+      "userPromptPlaceholder": "Введите пользовательский промпт для анализа изображений...",
+      "userPromptHelp": "Фактический промпт, отправляемый с каждым изображением. Оставьте пустым для использования значений по умолчанию.",
+      "resetToDefaults": "Сбросить по умолчанию",
+      "saveSuccess": "VLM-промпты успешно сохранены",
+      "resetSuccess": "VLM-промпты сброшены по умолчанию",
+      "errors": {
+        "fetchFailed": "Ошибка получения VLM-промптов\n{{error}}",
+        "saveFailed": "Ошибка сохранения VLM-промптов\n{{error}}",
+        "resetFailed": "Ошибка сброса VLM-промптов\n{{error}}"
       }
     }
   },

@@ -265,6 +265,12 @@ def parse_args() -> argparse.Namespace:
         default=False,
         help="Enable DOCLING document loading engine (default: from env or DEFAULT)",
     )
+    parser.add_argument(
+        "--raganything",
+        action="store_true",
+        default=False,
+        help="Enable RAG-Anything multimodal document loading engine",
+    )
 
     # Conditionally add binding options defined in binding_options module
     # This will add command line arguments for all binding options (e.g., --ollama-embedding-num_ctx)
@@ -383,8 +389,10 @@ def parse_args() -> argparse.Namespace:
     )
     args.enable_llm_cache = get_env_value("ENABLE_LLM_CACHE", True, bool)
 
-    # Set document_loading_engine from --docling flag
-    if args.docling:
+    # Set document_loading_engine from --docling or --raganything flag
+    if args.raganything:
+        args.document_loading_engine = "RAGANYTHING"
+    elif args.docling:
         args.document_loading_engine = "DOCLING"
     else:
         args.document_loading_engine = get_env_value(
@@ -393,6 +401,27 @@ def parse_args() -> argparse.Namespace:
 
     # PDF decryption password
     args.pdf_decrypt_password = get_env_value("PDF_DECRYPT_PASSWORD", None)
+
+    # RAG-Anything multimodal configuration
+    args.raganything_vision_model = get_env_value("RAGANYTHING_VISION_MODEL", None)
+    args.raganything_vision_api_key = get_env_value("RAGANYTHING_VISION_API_KEY", None)
+    args.raganything_vision_api_base = get_env_value("RAGANYTHING_VISION_API_BASE", None)
+    args.raganything_enable_image = get_env_value("RAGANYTHING_ENABLE_IMAGE", True, bool)
+    args.raganything_enable_table = get_env_value("RAGANYTHING_ENABLE_TABLE", True, bool)
+    args.raganything_enable_equation = get_env_value("RAGANYTHING_ENABLE_EQUATION", True, bool)
+    args.raganything_parser = get_env_value("RAGANYTHING_PARSER", "mineru")  # mineru or docling
+    args.raganything_parse_method = get_env_value("RAGANYTHING_PARSE_METHOD", "auto")  # auto, ocr, txt
+    args.raganything_ocr_lang = get_env_value("RAGANYTHING_OCR_LANG", "")  # OCR language: korean, en, ch, japan, etc.
+    # Custom VLM prompts (empty means use language-based defaults)
+    args.vlm_system_prompt = get_env_value("VLM_SYSTEM_PROMPT", "")
+    args.vlm_user_prompt = get_env_value("VLM_USER_PROMPT", "")
+
+    # Docling VLM configuration (for DOCLING engine with image processing)
+    args.docling_enable_vlm = get_env_value("DOCLING_ENABLE_VLM", False, bool)
+    args.docling_vision_model = get_env_value("DOCLING_VISION_MODEL", None)
+    args.docling_vision_api_key = get_env_value("DOCLING_VISION_API_KEY", None)
+    args.docling_vision_api_base = get_env_value("DOCLING_VISION_API_BASE", None)
+    args.docling_images_scale = get_env_value("DOCLING_IMAGES_SCALE", 2.0, float)
 
     # Add environment variables that were previously read directly
     args.cors_origins = get_env_value("CORS_ORIGINS", "*")
